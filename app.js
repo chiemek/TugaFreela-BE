@@ -1,11 +1,14 @@
 const express = require("express");
 const mongoose = require("mongoose");
 const cors = require("cors");
+const multer = require("multer");
+const cloudinary = require("cloudinary").v2;
 require("dotenv").config();
 const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
 const nodemailer = require("nodemailer");
 const crypto = require("crypto");
+const { Buffer } = require("buffer");
 const path = require("path");
 
 // Initialize Express app
@@ -24,8 +27,6 @@ app.use((req, res, next) => {
   next();
 });
 
-// Serve static files from the node-js-getting-started/public directory
-
 // Define the MONGO_URI
 const MONGO_URI = process.env.MONGO_URI;
 
@@ -34,6 +35,17 @@ mongoose
   .connect(MONGO_URI)
   .then(() => console.log("Connected to MongoDB"))
   .catch((err) => console.error("Error connecting to MongoDB:", err));
+
+// Cloudinary configuration
+cloudinary.config({
+  cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
+  api_key: process.env.CLOUDINARY_API_KEY,
+  api_secret: process.env.CLOUDINARY_API_SECRET,
+});
+
+// Multer setup for file handling
+const storage = multer.memoryStorage();
+const upload = multer({ storage });
 
 // Define User Schema
 const userSchema = new mongoose.Schema({
@@ -80,9 +92,89 @@ const userSchema = new mongoose.Schema({
   rate: Number,
   resetPasswordToken: String, // New field
   resetPasswordExpires: Date, // New field
+  profileImageUrl: String, // New field for storing Cloudinary image URL
+  profileImagePublicId: String, // New field for storing Cloudinary public_id
 });
 
 const User = mongoose.model("User", userSchema);
+
+// Endpoint for uploading profile picture
+app.post(
+  "/upload-profile-picture",
+  upload.single("profilePicture"),
+  async (req, res) => {
+    const { userId } = req.body; // Get userId from request body
+
+    if (!req.file) {
+      return res.status(400).json({ error: "No file uploaded" });
+    }
+
+    try {
+      // Upload image to Cloudinary
+      const result = await new Promise((resolve, reject) => {
+        cloudinary.uploader
+          .upload_stream({ folder: "profile_pictures" }, (error, result) => {
+            if (error) {
+              reject(error);
+            } else {
+              resolve(result);
+            }
+          })
+          .end(req.file.buffer);
+      });
+
+      // Update user document with the new image URL and public ID
+      const updatedUser = await User.findByIdAndUpdate(
+        userId,
+        {
+          profileImageUrl: result.secure_url,
+          profileImagePublicId: result.public_id,
+        },
+        { new: true }
+      );
+
+      if (!updatedUser) {
+        return res.status(404).json({ error: "User not found" });
+      }
+
+      // Send the updated user data back to the frontend
+      res.status(200).json({
+        message: "Profile picture updated successfully",
+        user: updatedUser,
+      });
+    } catch (error) {
+      console.error("Error uploading to Cloudinary or updating user:", error);
+      return res.status(500).json({ error: "Error updating profile picture" });
+    }
+  }
+);
+
+// Endpoint to fetch a user's profile (including profile picture URL)
+app.get("/user/:id", (req, res) => {
+  const userId = req.params.id;
+
+  // Validate the format of the ID before querying the database
+  if (!mongoose.Types.ObjectId.isValid(userId)) {
+    return res.status(400).json({ error: "Invalid user ID format" });
+  }
+
+  User.findById(userId)
+    .then((user) => {
+      if (!user) {
+        return res.status(404).json({ error: "User not found" });
+      }
+
+      // Return the user data, excluding sensitive fields if necessary
+      res.status(200).json({
+        status: "success",
+        data: user,
+      });
+    })
+    .catch((error) => {
+      console.error("Error fetching user:", error);
+      res.status(500).json({ error: "Internal server error" });
+    });
+});
 
 // Endpoint for signup-clientSkip
 app.post("/signup-clientSkip", async (req, res) => {
@@ -106,6 +198,8 @@ app.post("/signup-clientSkip", async (req, res) => {
       categories,
       description,
       rate,
+      profileImageUrl, // New field for storing Cloudinary image URL
+      profileImagePublicId, // New field for storing Cloudinary public_id
     } = req.body;
 
     // Check for required fields
@@ -142,6 +236,8 @@ app.post("/signup-clientSkip", async (req, res) => {
       categories: null,
       description: null,
       rate: null,
+      profileImageUrl: profileImageUrl || null, // New field for storing Cloudinary image URL
+      profileImagePublicId: profileImagePublicId || null, // New field for storing Cloudinary public_id
     };
 
     // Save the user
@@ -160,152 +256,202 @@ app.post("/signup-clientSkip", async (req, res) => {
 });
 
 // Endpoint for signup-freelancer
-app.post("/signup-freelancer", async (req, res) => {
-  try {
-    const {
-      role,
-      phoneNumber,
-      email,
-      dateOfBirth,
-      address,
-      postalCode,
-      state,
-      password,
-      confirmPassword,
-      firstName,
-      lastName,
-      id,
-      nif,
-      citizenCard,
-      title,
-      categories,
-      description,
-      rate,
-    } = req.body;
+app.post(
+  "/signup-freelancer",
+  upload.single("profilePicture"),
+  async (req, res) => {
+    try {
+      // Extract fields from req.body
+      const {
+        role,
+        phoneNumber,
+        email,
+        dateOfBirth,
+        address,
+        postalCode,
+        state,
+        password,
+        confirmPassword,
+        firstName,
+        lastName,
+        nif,
+        citizenCard,
+        title,
+        categories,
+        description,
+        rate,
+      } = req.body;
+      const profilePicture = req.file ? req.file.buffer : null; // Extract the file
 
-    // Check for required fields
-    if (!role || !email || !password || !confirmPassword) {
-      return res.status(400).json({
-        error: "Role, email, password, and confirm password are required",
+      // Check for required fields
+      if (!role || !email || !password || !confirmPassword) {
+        return res.status(400).json({
+          error: "Role, email, password, and confirm password are required",
+        });
+      }
+
+      // Validate password match
+      if (password !== confirmPassword) {
+        return res.status(400).json({ error: "Passwords do not match" });
+      }
+
+      // Hash the password
+      const hashedPassword = await bcrypt.hash(password, 10);
+
+      // Variables for profile image data
+      let profileImageUrl = null;
+      let profileImagePublicId = null;
+
+      // Upload profile picture to Cloudinary if provided
+      if (profilePicture) {
+        const result = await new Promise((resolve, reject) => {
+          cloudinary.uploader
+            .upload_stream({ folder: "profile_pictures" }, (error, result) => {
+              if (error) {
+                reject(error);
+              } else {
+                resolve(result);
+              }
+            })
+            .end(profilePicture);
+        });
+
+        profileImageUrl = result.secure_url;
+        profileImagePublicId = result.public_id;
+      }
+
+      // Prepare user data
+      const newUser = new User({
+        role,
+        phoneNumber,
+        email,
+        dateOfBirth,
+        address,
+        postalCode,
+        state,
+        password: hashedPassword,
+        firstName,
+        lastName,
+        nif,
+        citizenCard,
+        title,
+        categories: categories ? categories.split(",") : [], // Ensure categories is an array
+        description,
+        rate,
+        profileImageUrl,
+        profileImagePublicId,
       });
+
+      // Save the user
+      await newUser.save();
+
+      res.status(201).json({ message: "User created successfully" });
+    } catch (error) {
+      console.error("Error creating user:", error);
+      res
+        .status(500)
+        .json({ error: "Internal server error", details: error.message });
     }
-
-    // Validate password match
-    if (password !== confirmPassword) {
-      return res.status(400).json({ error: "Passwords do not match" });
-    }
-
-    // Hash the password
-    const hashedPassword = await bcrypt.hash(password, 10);
-
-    // Prepare user data with default null values for missing fields
-    const newUser = {
-      role: role,
-      phoneNumber: phoneNumber,
-      email: email,
-      dateOfBirth: dateOfBirth,
-      address: address,
-      postalCode: postalCode,
-      state: state,
-      password: hashedPassword,
-      firstName: firstName,
-      lastName: lastName,
-      id: null, // Set id to null
-      nif: nif,
-      citizenCard: citizenCard,
-      title: title,
-      categories: categories,
-      description: description,
-      rate: rate,
-    };
-
-    // Save the user
-    const user = new User(newUser);
-    await user.save();
-    res
-      .status(201)
-      .json({ message: "User created successfully with id set to null" });
-  } catch (error) {
-    console.error("Error creating user:", error);
-    res
-      .status(500)
-      .json({ error: "Internal server error", details: error.message });
   }
-});
+);
 
 // Endpoint for signup-client
-app.post("/signup-client", async (req, res) => {
-  try {
-    const {
-      role,
-      phoneNumber,
-      email,
-      dateOfBirth,
-      address,
-      postalCode,
-      state,
-      password,
-      confirmPassword,
-      firstName,
-      lastName,
-      id,
-      nif,
-      citizenCard,
-      title,
-      categories,
-      description,
-      rate,
-    } = req.body;
+app.post(
+  "/signup-client",
+  upload.single("profilePicture"),
+  async (req, res) => {
+    try {
+      const {
+        role,
+        phoneNumber,
+        email,
+        dateOfBirth,
+        address,
+        postalCode,
+        state,
+        password,
+        confirmPassword,
+        firstName,
+        lastName,
+        nif,
+        citizenCard,
+        title,
+        categories,
+        description,
+        rate,
+      } = req.body;
+      const profilePicture = req.file ? req.file.buffer : null; // Extract the file
 
-    // Check for required fields
-    if (!role || !email || !password || !confirmPassword) {
-      return res.status(400).json({
-        error: "Role, email, password, and confirm password are required",
+      // Check for required fields
+      if (!role || !email || !password || !confirmPassword) {
+        return res.status(400).json({
+          error: "Role, email, password, and confirm password are required",
+        });
+      }
+
+      // Validate password match
+      if (password !== confirmPassword) {
+        return res.status(400).json({ error: "Passwords do not match" });
+      }
+
+      // Hash the password
+      const hashedPassword = await bcrypt.hash(password, 10);
+
+      // Variables for profile image data
+      let profileImageUrl = null;
+      let profileImagePublicId = null;
+
+      // Upload profile picture to Cloudinary if provided
+      if (profilePicture) {
+        const result = await new Promise((resolve, reject) => {
+          cloudinary.uploader
+            .upload_stream({ folder: "profile_pictures" }, (error, result) => {
+              if (error) {
+                reject(error);
+              } else {
+                resolve(result);
+              }
+            })
+            .end(profilePicture);
+        });
+
+        profileImageUrl = result.secure_url;
+        profileImagePublicId = result.public_id;
+      }
+
+      // Prepare user data
+      const newUser = new User({
+        role,
+        phoneNumber,
+        email,
+        dateOfBirth,
+        address,
+        postalCode,
+        state,
+        password: hashedPassword,
+        firstName,
+        lastName,
+        nif: nif || null, // Ensure nif is either provided or null
+        citizenCard: citizenCard || null, // Ensure citizenCard is either provided or null
+        title: title || null,
+        categories: categories ? categories.split(",") : [], // Convert categories to an array if provided
+        description,
+        rate: rate || null,
+        profileImageUrl,
+        profileImagePublicId,
       });
+
+      // Save the user
+      await newUser.save();
+      res.status(201).json({ message: "User created successfully" });
+    } catch (error) {
+      console.error("Error creating user:", error);
+      res
+        .status(500)
+        .json({ error: "Internal server error", details: error.message });
     }
-
-    // Validate password match
-    if (password !== confirmPassword) {
-      return res.status(400).json({ error: "Passwords do not match" });
-    }
-
-    // Hash the password
-    const hashedPassword = await bcrypt.hash(password, 10);
-
-    // Prepare user data with default null values for missing fields
-    const newUser = {
-      role: role,
-      phoneNumber: phoneNumber,
-      email: email,
-      dateOfBirth: dateOfBirth,
-      address: address,
-      postalCode: postalCode,
-      state: state,
-      password: hashedPassword,
-      firstName: firstName,
-      lastName: lastName,
-      id: id,
-      nif: null, // Set nif to null
-      citizenCard: null, // Set citizenCard to null
-      title: null,
-      categories: null,
-      description: description,
-      rate: null,
-    };
-
-    // Save the user
-    const user = new User(newUser);
-    await user.save();
-    res.status(201).json({
-      message: "User created successfully with nif and citizenCard set to null",
-    });
-  } catch (error) {
-    console.error("Error creating user:", error);
-    res
-      .status(500)
-      .json({ error: "Internal server error", details: error.message });
   }
-});
+);
 
 // Login Endpoint
 app.post("/login", async (req, res) => {
