@@ -10,11 +10,16 @@ const nodemailer = require("nodemailer");
 const crypto = require("crypto");
 const { Buffer } = require("buffer");
 const path = require("path");
+const flash = require("express-flash");
+const Contact = require("./models/contact"); // Path to your Contact model
+// const session = require("express-sesion");
 
 // Initialize Express app
 const app = express();
 app.use(cors());
 app.use(express.json());
+app.use(flash());
+// app.use(session());
 
 // Root endPoint
 app.get("/", (req, res) => {
@@ -94,9 +99,66 @@ const userSchema = new mongoose.Schema({
   resetPasswordExpires: Date, // New field
   profileImageUrl: String, // New field for storing Cloudinary image URL
   profileImagePublicId: String, // New field for storing Cloudinary public_id
+  profilePicture: String,
+  balance: Number,
+  proposals: Number,
+  acceptedProposals: Number,
+  views: Number,
+  level: Number,
+  jobProposals: [{}],
+  activeProposals: [{}],
 });
 
 const User = mongoose.model("User", userSchema);
+
+// Contact Us POST endpoint
+app.post("/ContactUs", async (req, res) => {
+  const { name, email, number, message } = req.body;
+
+  try {
+    // Step 1: Save the contact information to the database
+    const newContact = new Contact({
+      name,
+      email,
+      number,
+      message,
+    });
+    await newContact.save();
+
+    // Step 2: Create a Nodemailer transporter
+    const transporter = nodemailer.createTransport({
+      service: "gmail",
+      auth: {
+        user: process.env.EMAIL_USER,
+        pass: process.env.EMAIL_PASS,
+      },
+    });
+
+    // Step 3: Set up email data
+    const mailOptions = {
+      from: email,
+      to: process.env.EMAIL_USER,
+      subject: "New Contact Form Submission",
+      text: `Name: ${name}\nEmail: ${email}\nNumber: ${number}\nMessage: ${message}`,
+    };
+
+    // Step 4: Send the email
+    transporter.sendMail(mailOptions, (error, info) => {
+      if (error) {
+        console.error("Error sending email:", error);
+        return res.status(500).json({ error: "Error sending email" });
+      } else {
+        console.log("Email sent:", info.response);
+        return res.status(200).json({
+          message: "Email sent successfully and contact saved to database",
+        });
+      }
+    });
+  } catch (error) {
+    console.error("Error saving contact to the database:", error);
+    return res.status(500).json({ error: "Error processing your request" });
+  }
+});
 
 // Endpoint for uploading profile picture
 app.post(
@@ -340,6 +402,13 @@ app.post(
         rate,
         profileImageUrl,
         profileImagePublicId,
+        balance: 0,
+        proposals: 0,
+        acceptedProposals: 0,
+        views: 0,
+        level: 0,
+        jobProposals: [{}],
+        activeProposals: [{}],
       });
 
       // Save the user
@@ -464,12 +533,12 @@ app.post("/login", async (req, res) => {
   try {
     const user = await User.findOne({ email });
     if (!user) {
-      return res.status(401).json({ error: "Invalid email or password" });
+      return res.status(401).json({ error: "Invalid email " });
     }
 
     const isMatch = await bcrypt.compare(password, user.password);
     if (!isMatch) {
-      return res.status(401).json({ error: "Invalid email or password" });
+      return res.status(401).json({ error: "Invalid password" });
     }
 
     // Generate JWT token
