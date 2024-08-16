@@ -576,8 +576,10 @@ app.get("/protected", authenticateJWT, (req, res) => {
   res.json({ message: "This is a protected route", user: req.user });
 });
 
+// forgot password endpoint
 app.post("/forgot-password", async (req, res) => {
   const { email } = req.body;
+
   if (!email) {
     return res.status(400).json({ error: "Email is required" });
   }
@@ -588,7 +590,6 @@ app.post("/forgot-password", async (req, res) => {
       return res.status(404).json({ error: "User not found" });
     }
 
-    // Generate a reset token and expiry time
     const resetToken = crypto.randomBytes(32).toString("hex");
     const resetPasswordExpires = Date.now() + 3600000; // 1 hour
 
@@ -596,7 +597,6 @@ app.post("/forgot-password", async (req, res) => {
     user.resetPasswordExpires = resetPasswordExpires;
     await user.save();
 
-    // Send email with the reset token
     const transporter = nodemailer.createTransport({
       service: "gmail",
       auth: {
@@ -615,15 +615,9 @@ https://tugafreela.netlify.app/reset-password/${resetToken}
 If you did not request this, please ignore this email and your password will remain unchanged.`,
     };
 
-    transporter.sendMail(mailOptions, (error) => {
-      if (error) {
-        console.error("Error sending email:", error);
-        return res
-          .status(500)
-          .json({ error: "Internal server error", details: error.message });
-      }
-      res.json({ message: "Password reset email sent" });
-    });
+    await transporter.sendMail(mailOptions);
+
+    res.json({ message: "Password reset email sent" });
   } catch (error) {
     console.error("Error sending reset password email:", error);
     res
