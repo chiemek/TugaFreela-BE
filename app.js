@@ -12,6 +12,7 @@ const { Buffer } = require("buffer");
 const path = require("path");
 const flash = require("express-flash");
 const Contact = require("./models/contact"); // Path to your Contact model
+const { profile } = require("console");
 // const session = require("express-sesion");
 
 // Initialize Express app
@@ -548,7 +549,25 @@ app.post("/login", async (req, res) => {
       { expiresIn: "15m" }
     );
 
-    res.json({ token });
+    // Define the data you want to send back
+    const userData = {
+      id: user._id,
+      email: user.email,
+      role: user.role,
+      profileImagePublicId: user.profileImagePublicId,
+      profileImageUrl: user.profileImageUrl,
+      balance: user.balance,
+      acceptedProposals: user.acceptedProposals,
+      views: user.views,
+      level: user.level,
+      jobProposals: user.jobProposals,
+      activeProposals: user.activeProposals,
+      firstName: user.firstName,
+      // Add more fields as needed
+      // e.g., username: user.username, or other data from the user document
+    };
+
+    res.json({ token, userData });
   } catch (error) {
     console.error("Login error:", error);
     res
