@@ -586,9 +586,42 @@ const authenticateJWT = (req, res, next) => {
   jwt.verify(token, process.env.JWT_SECRET, (err, user) => {
     if (err) return res.sendStatus(403);
     req.user = user;
+
     next();
   });
 };
+
+app.get("/Profile", authenticateJWT, async (req, res) => {
+  try {
+    console.log("User info:", req.user); // Log user info
+
+    const { userId } = req.user;
+    const user = await User.findById(mongoose.ObjectId(userId));
+
+    if (user) {
+      const userData = {
+        id: user._id,
+        email: user.email,
+        role: user.role,
+        profileImagePublicId: user.profileImagePublicId,
+        profileImageUrl: user.profileImageUrl,
+        balance: user.balance,
+        acceptedProposals: user.acceptedProposals,
+        views: user.views,
+        level: user.level,
+        jobProposals: user.jobProposals,
+        activeProposals: user.activeProposals,
+        firstName: user.firstName,
+      };
+      return res.status(200).json({ userData });
+    } else {
+      return res.status(404).json({ message: "User not found" });
+    }
+  } catch (error) {
+    console.error("Server error:", error);
+    return res.status(500).json({ message: "Internal server error" });
+  }
+});
 
 // Example of a protected route
 app.get("/protected", authenticateJWT, (req, res) => {
