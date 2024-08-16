@@ -611,7 +611,7 @@ app.post("/forgot-password", async (req, res) => {
       subject: "Password Reset Request",
       text: `You are receiving this email because you (or someone else) have requested the reset of the password for your account.
 Please click on the following link, or paste it into your browser to complete the process:
-http://localhost:5173/reset-password/${resetToken}
+https://tugafreela.netlify.app/${resetToken}
 If you did not request this, please ignore this email and your password will remain unchanged.`,
     };
 
