@@ -8,11 +8,9 @@ const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
 const nodemailer = require("nodemailer");
 const crypto = require("crypto");
-const { Buffer } = require("buffer");
 const path = require("path");
 const flash = require("express-flash");
 const Contact = require("./models/contact"); // Path to your Contact model
-const { profile } = require("console");
 // const session = require("express-sesion");
 
 // Initialize Express app
@@ -106,8 +104,58 @@ const userSchema = new mongoose.Schema({
   acceptedProposals: Number,
   views: Number,
   level: Number,
-  jobProposals: [{}],
-  activeProposals: [{}],
+  jobProposals: [
+    {
+      name: String,
+      proposals: Number,
+      clientsName: String,
+      clientId: String,
+      status: String,
+      date: Date,
+    },
+  ],
+  activeProposals: [
+    {
+      name: String,
+      proposals: Number,
+      clientsName: String,
+      clientId: String,
+      status: String,
+      date: Date,
+    },
+  ],
+  areaOfInterest: [],
+  skills: [],
+  projectCompleted: Number,
+  executingProjects: Number,
+  projectsInDespute: Number,
+  customerRating: Number,
+  customerFeedback: [
+    {
+      image: String,
+      name: String,
+      comment: String,
+      rating: Number,
+      date: Date,
+      title: String,
+    },
+  ],
+  notifications: [
+    {
+      message: String,
+      date: Date,
+      read: Boolean,
+    },
+  ],
+  chat: [
+    {
+      user: String,
+      image: String,
+      title: String,
+      message: String,
+      read: Boolean,
+    },
+  ],
 });
 
 const User = mongoose.model("User", userSchema);
@@ -211,33 +259,6 @@ app.post(
     }
   }
 );
-
-// Endpoint to fetch a user's profile (including profile picture URL)
-app.get("/user/:id", (req, res) => {
-  const userId = req.params.id;
-
-  // Validate the format of the ID before querying the database
-  if (!mongoose.Types.ObjectId.isValid(userId)) {
-    return res.status(400).json({ error: "Invalid user ID format" });
-  }
-
-  User.findById(userId)
-    .then((user) => {
-      if (!user) {
-        return res.status(404).json({ error: "User not found" });
-      }
-
-      // Return the user data, excluding sensitive fields if necessary
-      res.status(200).json({
-        status: "success",
-        data: user,
-      });
-    })
-    .catch((error) => {
-      console.error("Error fetching user:", error);
-      res.status(500).json({ error: "Internal server error" });
-    });
-});
 
 // Endpoint for signup-clientSkip
 app.post("/signup-clientSkip", async (req, res) => {
@@ -408,8 +429,64 @@ app.post(
         acceptedProposals: 0,
         views: 0,
         level: 0,
-        jobProposals: [{}],
-        activeProposals: [{}],
+        jobProposals: [
+          {
+            name: "Design de aplicativo de eventos e entretenimento",
+            proposals: 212,
+            clientsName: "Diego Lucsen",
+            clientId: "",
+            status: "",
+            date: "",
+          },
+        ],
+        activeProposals: [
+          {
+            name: "Design de aplicativo de eventos e entretenimento",
+            proposals: 212,
+            clientsName: "Diego Lucsen",
+            clientId: "",
+            status: "",
+            date: "",
+          },
+        ],
+        areaOfInterest: ["Design"],
+        skills: [
+          "Design3D",
+          "UI/UX Designer",
+          "Web Designer",
+          "Marketing Digital",
+        ],
+        projectCompleted: 3,
+        executingProjects: 1,
+        projectsInDespute: 0,
+        customerRating: 5,
+        customerFeedback: [
+          {
+            image: "",
+            name: "Paulo S",
+            comment: "Ótimo profissional! Recomendo.",
+            rating: 4.0,
+            title: "Design de aplicativo de eventos e entretenimento",
+            date: Date,
+          },
+        ],
+        notifications: [
+          {
+            message:
+              "A sua proposta foi aceita em um job Design de aplicativo de eventos e",
+            date: Date,
+            read: false,
+          },
+        ],
+        chat: [
+          {
+            user: String,
+            image: "",
+            title: "Design de aplicativo de eventos e ",
+            message: "Olá, tudo bem? Me chamo Dayvid e sou freelancer ...",
+            read: false,
+          },
+        ],
       });
 
       // Save the user
@@ -509,6 +586,31 @@ app.post(
         rate: rate || null,
         profileImageUrl,
         profileImagePublicId,
+        balance: 0,
+        proposals: 0,
+        acceptedProposals: 0,
+        views: 0,
+        level: 0,
+        jobProposals: [
+          {
+            name: "Design de aplicativo de eventos e entretenimento",
+            proposals: 212,
+            clientsName: "Diego Lucsen",
+            clientId: "",
+            status: "",
+            date: "",
+          },
+        ],
+        activeProposals: [
+          {
+            name: "Design de aplicativo de eventos e entretenimento",
+            proposals: 212,
+            clientsName: "Diego Lucsen",
+            clientId: "",
+            status: "",
+            date: "",
+          },
+        ],
       });
 
       // Save the user
@@ -524,6 +626,7 @@ app.post(
 );
 
 // Login Endpoint
+// Login Endpoint
 app.post("/login", async (req, res) => {
   const { email, password } = req.body;
 
@@ -534,7 +637,7 @@ app.post("/login", async (req, res) => {
   try {
     const user = await User.findOne({ email });
     if (!user) {
-      return res.status(401).json({ error: "Invalid email " });
+      return res.status(401).json({ error: "Invalid email" });
     }
 
     const isMatch = await bcrypt.compare(password, user.password);
@@ -546,7 +649,7 @@ app.post("/login", async (req, res) => {
     const token = jwt.sign(
       { userId: user._id, role: user.role },
       process.env.JWT_SECRET,
-      { expiresIn: "15m" }
+      { expiresIn: "1h" }
     );
 
     // Define the data you want to send back
@@ -564,7 +667,6 @@ app.post("/login", async (req, res) => {
       activeProposals: user.activeProposals,
       firstName: user.firstName,
       // Add more fields as needed
-      // e.g., username: user.username, or other data from the user document
     };
 
     res.json({ token, userData });
@@ -576,56 +678,72 @@ app.post("/login", async (req, res) => {
   }
 });
 
-// Middleware to verify JWT token
+// JWT Middleware
+// Enhanced authenticateJWT middleware
 const authenticateJWT = (req, res, next) => {
-  const authHeader = req.headers["authorization"];
-  const token = authHeader && authHeader.split(" ")[1];
+  console.log("Entering authenticateJWT middleware");
 
-  if (token == null) return res.sendStatus(401);
+  const authHeader =
+    req.headers["authorization"] || req.headers["Authorization"];
+  console.log("Authorization header:", authHeader);
 
+  if (!authHeader) {
+    console.log("No authorization header provided");
+    return res
+      .status(401)
+      .json({ message: "No authorization header provided" });
+  }
+
+  const token = authHeader.split(" ")[1];
+  console.log(
+    "Extracted token:",
+    token ? `${token.substring(0, 10)}...` : "undefined"
+  );
+
+  if (!token) {
+    console.log("No token provided");
+    return res.status(401).json({ message: "No token provided" });
+  }
+
+  console.log(
+    "Attempting to verify token with secret:",
+    process.env.JWT_SECRET ? "Secret exists" : "Secret is undefined"
+  );
   jwt.verify(token, process.env.JWT_SECRET, (err, user) => {
-    if (err) return res.sendStatus(403);
+    if (err) {
+      console.log("Token verification failed:", err.message);
+      console.log("Error name:", err.name);
+      console.log("Error stack:", err.stack);
+
+      const message =
+        err.name === "TokenExpiredError"
+          ? "Token expired"
+          : "Token verification failed";
+
+      return res.status(403).json({ message });
+    }
+
     req.user = user;
+    console.log("Token verified successfully");
+    console.log("User data from token:", JSON.stringify(user, null, 2));
 
     next();
   });
 };
 
-app.get("/Profile", authenticateJWT, async (req, res) => {
-  try {
-    console.log("User info:", req.user); // Log user info
-
-    const { userId } = req.user;
-    const user = await User.findById(mongoose.ObjectId(userId));
-
-    if (user) {
-      const userData = {
-        id: user._id,
-        email: user.email,
-        role: user.role,
-        profileImagePublicId: user.profileImagePublicId,
-        profileImageUrl: user.profileImageUrl,
-        balance: user.balance,
-        acceptedProposals: user.acceptedProposals,
-        views: user.views,
-        level: user.level,
-        jobProposals: user.jobProposals,
-        activeProposals: user.activeProposals,
-        firstName: user.firstName,
-      };
-      return res.status(200).json({ userData });
-    } else {
-      return res.status(404).json({ message: "User not found" });
-    }
-  } catch (error) {
-    console.error("Server error:", error);
-    return res.status(500).json({ message: "Internal server error" });
-  }
-});
-
-// Example of a protected route
+// Modified protected route
 app.get("/protected", authenticateJWT, (req, res) => {
-  res.json({ message: "This is a protected route", user: req.user });
+  console.log("Entering /protected route");
+  try {
+    console.log("User object in request:", JSON.stringify(req.user, null, 2));
+    res.json({ message: "This is a protected route", user: req.user });
+  } catch (error) {
+    console.error("Error in protected route:", error);
+    res.status(500).json({
+      message: "Internal server error in protected route",
+      error: error.message,
+    });
+  }
 });
 
 // forgot password endpoint
