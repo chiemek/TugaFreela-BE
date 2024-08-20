@@ -666,6 +666,15 @@ app.post("/login", async (req, res) => {
       jobProposals: user.jobProposals,
       activeProposals: user.activeProposals,
       firstName: user.firstName,
+      areaOfInterest: user.areaOfInterest,
+      projectCompleted: user.projectCompleted,
+      executingProjects: user.executingProjects,
+      projectsInDespute: user.projectsInDespute,
+      customerRating: user.customerRating,
+      customerFeedback: user.customerFeedback,
+      notifications: user.notifications,
+      chat: user.chat,
+      skills: user.skills,
       // Add more fields as needed
     };
 
