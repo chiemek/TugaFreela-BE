@@ -11,6 +11,7 @@ const crypto = require("crypto");
 const path = require("path");
 const flash = require("express-flash");
 const Contact = require("./models/contact"); // Path to your Contact model
+const router = express.Router();
 // const session = require("express-sesion");
 
 // Initialize Express app
