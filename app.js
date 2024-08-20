@@ -626,7 +626,6 @@ app.post(
 );
 
 // Login Endpoint
-// Login Endpoint
 app.post("/login", async (req, res) => {
   const { email, password } = req.body;
 
@@ -740,6 +739,26 @@ const authenticateJWT = (req, res, next) => {
     next();
   });
 };
+
+// DELETE /api/users/delete-account
+router.delete("/delete-account", authMiddleware, async (req, res) => {
+  try {
+    // Get the user ID from the authenticated request
+    const userId = req.user.id;
+
+    // Find the user by ID and delete the user document
+    const deletedUser = await User.findByIdAndDelete(userId);
+
+    if (!deletedUser) {
+      return res.status(404).json({ msg: "User not found" });
+    }
+
+    res.json({ msg: "User account deleted successfully" });
+  } catch (err) {
+    console.error(err.message);
+    res.status(500).send("Server error");
+  }
+});
 
 // Modified protected route
 app.get("/protected", authenticateJWT, (req, res) => {
