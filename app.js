@@ -662,6 +662,7 @@ app.post("/login", async (req, res) => {
       balance: user.balance,
       acceptedProposals: user.acceptedProposals,
       views: user.views,
+      description: user.description,
       level: user.level,
       jobProposals: user.jobProposals,
       activeProposals: user.activeProposals,
