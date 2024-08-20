@@ -436,7 +436,7 @@ app.post(
             clientsName: "Diego Lucsen",
             clientId: "",
             status: "",
-            date: "",
+            date: null,
           },
         ],
         activeProposals: [
@@ -446,7 +446,7 @@ app.post(
             clientsName: "Diego Lucsen",
             clientId: "",
             status: "",
-            date: "",
+            date: null,
           },
         ],
         areaOfInterest: ["Design"],
@@ -467,14 +467,14 @@ app.post(
             comment: "Ótimo profissional! Recomendo.",
             rating: 4.0,
             title: "Design de aplicativo de eventos e entretenimento",
-            date: Date,
+            date: null,
           },
         ],
         notifications: [
           {
             message:
               "A sua proposta foi aceita em um job Design de aplicativo de eventos e",
-            date: Date,
+            date: null,
             read: false,
           },
         ],
