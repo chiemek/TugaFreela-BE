@@ -807,15 +807,14 @@ app.delete(
 app.put(
   "/user/:id",
   authenticateJWT,
-  checkPermission("update:user"), // Use the permission middleware
-  upload.single("profilePic"), // Handle single file upload
+  checkPermission("update:user"),
+  upload.single("profilePic"),
   async (req, res) => {
-    const userId = req.user.userId; // Extract user ID from the token
-    const { id } = req.params; // Get the ID from the request parameters
-    const updates = req.body; // Get the data to update from the request body
+    const userId = req.user.userId;
+    const { id } = req.params;
+    const updates = req.body;
 
     try {
-      // Check if the user exists
       const user = await User.findById(id);
       if (!user) {
         return res.status(404).json({
@@ -823,21 +822,15 @@ app.put(
         });
       }
 
-      // Check if the user is authorized to update
       if (userId !== id && req.user.role !== "admin") {
         return res
           .status(403)
           .json({ error: "You do not have permission to update this user." });
       }
 
-      // Handle image upload if an image is included in the request
       if (req.file) {
         const imageFile = req.file;
-
-        // Construct the public ID for deletion
-        const oldPublicId = user.profilePicPublicId
-          ? user.profilePicPublicId.split("/").pop()
-          : null;
+        const oldPublicId = user.profilePicPublicId;
 
         // Delete the old image from Cloudinary if it exists
         if (oldPublicId) {
@@ -876,14 +869,11 @@ app.put(
                   resolve(result);
                 }
               )
-              .end(imageFile.buffer); // Use buffer from multer
+              .end(imageFile.buffer);
           });
 
-          // Extract the URL and public ID from the Cloudinary response
           const imageUrl = uploadResponse.secure_url;
           const imagePublicId = uploadResponse.public_id;
-
-          // Add image URL and public ID to the updates object
           updates.profilePic = imageUrl;
           updates.profilePicPublicId = imagePublicId;
         } catch (cloudinaryError) {
@@ -897,11 +887,9 @@ app.put(
         }
       }
 
-      // Update user with the new data
       const updatedUser = await User.findByIdAndUpdate(id, updates, {
         new: true,
       });
-
       if (!updatedUser) {
         return res
           .status(404)
