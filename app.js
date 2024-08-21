@@ -834,10 +834,23 @@ app.put(
       if (req.file) {
         const imageFile = req.file;
 
+        // Construct the public ID for deletion
+        const oldPublicId = user.profilePicPublicId
+          ? user.profilePicPublicId.split("/").pop()
+          : null;
+
         // Delete the old image from Cloudinary if it exists
-        if (user.profilePic && user.profilePic.publicId) {
+        if (oldPublicId) {
           try {
-            await cloudinary.uploader.destroy(user.profilePic.publicId);
+            const deleteResponse = await cloudinary.uploader.destroy(
+              `profile_pictures/${oldPublicId}`
+            );
+            if (deleteResponse.result !== "ok") {
+              throw new Error(
+                `Failed to delete old image: ${deleteResponse.result}`
+              );
+            }
+            console.log("Old image deleted successfully.");
           } catch (cloudinaryError) {
             console.error(
               "Error deleting old image from Cloudinary:",
@@ -852,14 +865,27 @@ app.put(
         // Upload the new image to Cloudinary
         let uploadResponse;
         try {
-          uploadResponse = await cloudinary.uploader
-            .upload_stream({ resource_type: "image" }, (error, result) => {
-              if (error) {
-                throw new Error("Cloudinary upload error");
-              }
-              uploadResponse = result;
-            })
-            .end(imageFile.buffer); // Use buffer from multer
+          uploadResponse = await new Promise((resolve, reject) => {
+            cloudinary.uploader
+              .upload_stream(
+                { resource_type: "image", folder: "profile_pictures" },
+                (error, result) => {
+                  if (error) {
+                    return reject(new Error("Cloudinary upload error"));
+                  }
+                  resolve(result);
+                }
+              )
+              .end(imageFile.buffer); // Use buffer from multer
+          });
+
+          // Extract the URL and public ID from the Cloudinary response
+          const imageUrl = uploadResponse.secure_url;
+          const imagePublicId = uploadResponse.public_id;
+
+          // Add image URL and public ID to the updates object
+          updates.profilePic = imageUrl;
+          updates.profilePicPublicId = imagePublicId;
         } catch (cloudinaryError) {
           console.error(
             "Error uploading image to Cloudinary:",
@@ -869,14 +895,6 @@ app.put(
             .status(500)
             .json({ error: "Failed to upload image to Cloudinary." });
         }
-
-        // Extract the URL and public ID from the Cloudinary response
-        const imageUrl = uploadResponse.secure_url;
-        const imagePublicId = uploadResponse.public_id;
-
-        // Add image URL and public ID to the updates object
-        updates.profilePic = imageUrl;
-        updates.profilePicPublicId = imagePublicId;
       }
 
       // Update user with the new data
