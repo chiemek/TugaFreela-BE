@@ -54,6 +54,7 @@ const upload = multer({ storage });
 // Define User Schema
 const userSchema = new mongoose.Schema({
   role: { type: String, required: true },
+  permissions: { type: [String], default: [] }, // e.g., ['update:profile', 'delete:project'],
   phoneNumber: {
     type: String,
     validate: {
@@ -739,6 +740,91 @@ const authenticateJWT = (req, res, next) => {
     next();
   });
 };
+
+// Middleware to check if the user has the required permissions
+const checkPermission = (permission) => {
+  return (req, res, next) => {
+    // Retrieve user permissions or default to an empty array
+    const userPermissions = req.user.permissions || [];
+
+    // Check if user has the required permission or if they are an admin
+    if (userPermissions.includes(permission) || req.user.role === "admin") {
+      return next(); // User has permission or is an admin, proceed to the next middleware
+    }
+
+    // If the user does not have the required permission, send a 403 Forbidden response
+    return res
+      .status(403)
+      .json({ error: "You do not have permission to perform this action" });
+  };
+};
+
+// DELETE User Endpoint
+app.delete(
+  "/user/:id",
+  authenticateJWT,
+  checkPermission("delete:user"),
+  async (req, res) => {
+    const userId = req.user.userId; // Extract user ID from the token
+    const { id } = req.params; // Get the ID from the request parameters
+
+    try {
+      // Check if the user is trying to delete their own account or if they have a role that permits them to delete other users (e.g., admin)
+      if (userId === id || req.user.role === "admin") {
+        const deletedUser = await User.findByIdAndDelete(id);
+
+        if (!deletedUser) {
+          return res.status(404).json({ error: "User not found" });
+        }
+
+        return res.status(200).json({ message: "User deleted successfully" });
+      } else {
+        return res
+          .status(403)
+          .json({ error: "You do not have permission to delete this user" });
+      }
+    } catch (error) {
+      console.error("Error deleting user:", error);
+      res.status(500).json({ error: "Internal server error" });
+    }
+  }
+);
+
+// UPDATE User Endpoint
+app.put(
+  "/user/:id",
+  authenticateJWT,
+  checkPermission("update:user"),
+  async (req, res) => {
+    const userId = req.user.userId; // Extract user ID from the token
+    const { id } = req.params; // Get the ID from the request parameters
+    const updates = req.body; // Get the data to update from the request body
+
+    try {
+      // Check if the user is trying to update their own account or if they have a role that permits them to update other users (e.g., admin)
+      if (userId === id || req.user.role === "admin") {
+        const updatedUser = await User.findByIdAndUpdate(id, updates, {
+          new: true,
+        });
+
+        if (!updatedUser) {
+          return res.status(404).json({ error: "User not found" });
+        }
+
+        return res
+          .status(200)
+          .json({ message: "User updated successfully", user: updatedUser });
+      } else {
+        return res
+          .status(403)
+          .json({ error: "You do not have permission to update this user" });
+      }
+    } catch (error) {
+      console.error("Error updating user:", error);
+      res.status(500).json({ error: "Internal server error" });
+    }
+  }
+);
 
 // Modified protected route
 app.get("/protected", authenticateJWT, (req, res) => {
