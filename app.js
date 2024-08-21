@@ -744,12 +744,22 @@ const authenticateJWT = (req, res, next) => {
 // Middleware to check if the user has the required permissions
 const checkPermission = (permission) => {
   return (req, res, next) => {
-    // Retrieve user permissions or default to an empty array
     const userPermissions = req.user.permissions || [];
+    const userRole = req.user.role;
 
-    // Check if user has the required permission or if they are an admin
-    if (userPermissions.includes(permission) || req.user.role === "admin") {
-      return next(); // User has permission or is an admin, proceed to the next middleware
+    // If user has the required permission or is an admin, allow access
+    if (userPermissions.includes(permission) || userRole === "admin") {
+      return next();
+    }
+
+    // Additional role-based checks (e.g., allowing freelancers and clients to update or delete their own accounts)
+    if (userRole === "freelancer" || userRole === "client") {
+      // Allow freelancers or clients to update or delete their own accounts
+      if (permission === "update:user" || permission === "delete:user") {
+        if (req.user.userId === req.params.id) {
+          return next();
+        }
+      }
     }
 
     // If the user does not have the required permission, send a 403 Forbidden response
@@ -768,8 +778,11 @@ app.delete(
     const userId = req.user.userId; // Extract user ID from the token
     const { id } = req.params; // Get the ID from the request parameters
 
+    console.log("User ID from token:", userId);
+    console.log("Requested ID to delete:", id);
+    console.log("User Role:", req.user.role);
+
     try {
-      // Check if the user is trying to delete their own account or if they have a role that permits them to delete other users (e.g., admin)
       if (userId === id || req.user.role === "admin") {
         const deletedUser = await User.findByIdAndDelete(id);
 
