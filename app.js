@@ -807,34 +807,97 @@ app.delete(
 app.put(
   "/user/:id",
   authenticateJWT,
-  checkPermission("update:user"),
+  checkPermission("update:user"), // Use the permission middleware
+  upload.single("profilePic"), // Handle single file upload
   async (req, res) => {
     const userId = req.user.userId; // Extract user ID from the token
     const { id } = req.params; // Get the ID from the request parameters
     const updates = req.body; // Get the data to update from the request body
 
     try {
-      // Check if the user is trying to update their own account or if they have a role that permits them to update other users (e.g., admin)
-      if (userId === id || req.user.role === "admin") {
-        const updatedUser = await User.findByIdAndUpdate(id, updates, {
-          new: true,
+      // Check if the user exists
+      const user = await User.findById(id);
+      if (!user) {
+        return res.status(404).json({
+          error: "User not found. Please check the user ID and try again.",
         });
+      }
 
-        if (!updatedUser) {
-          return res.status(404).json({ error: "User not found" });
-        }
-
-        return res
-          .status(200)
-          .json({ message: "User updated successfully", user: updatedUser });
-      } else {
+      // Check if the user is authorized to update
+      if (userId !== id && req.user.role !== "admin") {
         return res
           .status(403)
-          .json({ error: "You do not have permission to update this user" });
+          .json({ error: "You do not have permission to update this user." });
       }
+
+      // Handle image upload if an image is included in the request
+      if (req.file) {
+        const imageFile = req.file;
+
+        // Delete the old image from Cloudinary if it exists
+        if (user.profilePic && user.profilePic.publicId) {
+          try {
+            await cloudinary.uploader.destroy(user.profilePic.publicId);
+          } catch (cloudinaryError) {
+            console.error(
+              "Error deleting old image from Cloudinary:",
+              cloudinaryError
+            );
+            return res
+              .status(500)
+              .json({ error: "Failed to delete old image from Cloudinary." });
+          }
+        }
+
+        // Upload the new image to Cloudinary
+        let uploadResponse;
+        try {
+          uploadResponse = await cloudinary.uploader
+            .upload_stream({ resource_type: "image" }, (error, result) => {
+              if (error) {
+                throw new Error("Cloudinary upload error");
+              }
+              uploadResponse = result;
+            })
+            .end(imageFile.buffer); // Use buffer from multer
+        } catch (cloudinaryError) {
+          console.error(
+            "Error uploading image to Cloudinary:",
+            cloudinaryError
+          );
+          return res
+            .status(500)
+            .json({ error: "Failed to upload image to Cloudinary." });
+        }
+
+        // Extract the URL and public ID from the Cloudinary response
+        const imageUrl = uploadResponse.secure_url;
+        const imagePublicId = uploadResponse.public_id;
+
+        // Add image URL and public ID to the updates object
+        updates.profilePic = imageUrl;
+        updates.profilePicPublicId = imagePublicId;
+      }
+
+      // Update user with the new data
+      const updatedUser = await User.findByIdAndUpdate(id, updates, {
+        new: true,
+      });
+
+      if (!updatedUser) {
+        return res
+          .status(404)
+          .json({ error: "User not found after update. Please try again." });
+      }
+
+      return res
+        .status(200)
+        .json({ message: "User updated successfully", user: updatedUser });
     } catch (error) {
       console.error("Error updating user:", error);
-      res.status(500).json({ error: "Internal server error" });
+      return res
+        .status(500)
+        .json({ error: "Internal server error. Please try again later." });
     }
   }
 );
