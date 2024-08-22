@@ -59,9 +59,7 @@ const userSchema = new mongoose.Schema({
     type: String,
     validate: {
       validator: function (v) {
-        return /^\+?(\d{1,3})?[-.\s]?(\d{3})[-.\s]?(\d{3})[-.\s]?(\d{4})$/.test(
-          v
-        );
+        return /^\d{10}$/.test(v);
       },
       message: (props) => `${props.value} is not a valid phone number!`,
     },
@@ -610,6 +608,44 @@ app.post(
             clientId: "",
             status: "",
             date: "",
+          },
+        ],
+        areaOfInterest: ["Design"],
+        skills: [
+          "Design3D",
+          "UI/UX Designer",
+          "Web Designer",
+          "Marketing Digital",
+        ],
+        projectCompleted: 3,
+        executingProjects: 1,
+        projectsInDespute: 0,
+        customerRating: 5,
+        customerFeedback: [
+          {
+            image: "",
+            name: "Paulo S",
+            comment: "Ótimo profissional! Recomendo.",
+            rating: 4.0,
+            title: "Design de aplicativo de eventos e entretenimento",
+            date: null,
+          },
+        ],
+        notifications: [
+          {
+            message:
+              "A sua proposta foi aceita em um job Design de aplicativo de eventos e",
+            date: null,
+            read: false,
+          },
+        ],
+        chat: [
+          {
+            user: String,
+            image: "",
+            title: "Design de aplicativo de eventos e ",
+            message: "Olá, tudo bem? Me chamo Dayvid e sou freelancer ...",
+            read: false,
           },
         ],
       });
