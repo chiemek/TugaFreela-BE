@@ -4,6 +4,7 @@ const helmet = require("helmet");
 const { sendSMS, sendEmail } = require("./otpConfig");
 const { generateOTP, storeOTP, verifyOTP } = require("./otpServices");
 const router = express.Router();
+const cors = require("cors"); // Import the cors middleware
 
 // Rate limiting middleware
 const limiter = rateLimit({
@@ -14,6 +15,7 @@ const limiter = rateLimit({
 
 // Apply rate limiting to all routes
 router.use(limiter);
+app.use(cors()); // This will enable CORS for all routes
 
 // Security headers middleware
 router.use(helmet());
