@@ -750,7 +750,7 @@ app.post("/login", async (req, res) => {
   }
 
   try {
-    const user = await user.findOne({ email });
+    const user = await User.findOne({ email });
     if (!user) {
       return res.status(401).json({ error: "Invalid email" });
     }
