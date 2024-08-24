@@ -8,13 +8,8 @@ const cors = require("cors"); // Import the cors middleware
 
 // Initialize Express app
 const app = express();
-app.use(
-  cors({
-    origin: "*", // Allow all origins or specify a particular origin
-    methods: ["GET", "POST", "PUT", "DELETE"],
-    allowedHeaders: ["Content-Type", "Authorization"],
-  })
-); // Use body parser middleware to handle JSON request bodies
+app.use(cors()); // This will enable CORS for all routes
+// Use body parser middleware to handle JSON request bodies
 app.use(express.json());
 
 // Rate limiting middleware
@@ -33,10 +28,13 @@ app.use(helmet());
 // Input validation functions
 const validatePhoneNumber = (phoneNumber) => /^\d{9}$/.test(phoneNumber);
 const validateEmail = (email) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+const cleanPhoneNumber = (phoneNumber) => phoneNumber.replace(/\D/g, "");
 
 // Send SMS OTP Route
 router.post("/send-sms-otp", async (req, res) => {
   const { phoneNumber } = req.body;
+  phoneNumber = cleanPhoneNumber(phoneNumber);
+
   if (!phoneNumber || !validatePhoneNumber(phoneNumber)) {
     return res
       .status(400)
