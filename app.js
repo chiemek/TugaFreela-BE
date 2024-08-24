@@ -12,17 +12,19 @@ const path = require("path");
 const flash = require("express-flash");
 const Contact = require("./models/contact"); // Path to your Contact model
 // const session = require("express-sesion");
+const otpRoutes = require("./service/routeOtp");
 
 // Initialize Express app
 const app = express();
 app.use(cors());
 app.use(express.json());
 app.use(flash());
+app.use("/api/otp", otpRoutes);
 // app.use(session());
 
 // Root endPoint
 app.get("/", (req, res) => {
-  res.send("Welcome to TugaFreela API");
+  res.send("Welcome to the OTP service");
 });
 
 //middleware log request
