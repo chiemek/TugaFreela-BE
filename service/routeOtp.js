@@ -8,8 +8,13 @@ const cors = require("cors"); // Import the cors middleware
 
 // Initialize Express app
 const app = express();
-app.use(cors()); // This will enable CORS for all routes
-// Use body parser middleware to handle JSON request bodies
+app.use(
+  cors({
+    origin: "*", // Allow all origins or specify a particular origin
+    methods: ["GET", "POST", "PUT", "DELETE"],
+    allowedHeaders: ["Content-Type", "Authorization"],
+  })
+); // Use body parser middleware to handle JSON request bodies
 app.use(express.json());
 
 // Rate limiting middleware
