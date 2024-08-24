@@ -9,6 +9,8 @@ const cors = require("cors"); // Import the cors middleware
 // Initialize Express app
 const app = express();
 app.use(cors()); // This will enable CORS for all routes
+// Use body parser middleware to handle JSON request bodies
+app.use(express.json());
 
 // Rate limiting middleware
 const limiter = rateLimit({
@@ -18,10 +20,10 @@ const limiter = rateLimit({
 });
 
 // Apply rate limiting to all routes
-router.use(limiter);
+app.use(limiter);
 
 // Security headers middleware
-router.use(helmet());
+app.use(helmet());
 
 // Input validation functions
 const validatePhoneNumber = (phoneNumber) => /^\d{9}$/.test(phoneNumber);
@@ -85,5 +87,8 @@ router.post("/verify-otp", async (req, res) => {
       .json({ error: "Invalid or expired OTP", details: error.message });
   }
 });
+
+// Apply the router to the app
+app.use(router);
 
 module.exports = router;
