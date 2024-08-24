@@ -157,6 +157,8 @@ const userSchema = new mongoose.Schema({
   ],
 });
 
+const User = mongoose.model("User", userSchema);
+
 const router = express.Router(); // Use express Router
 
 // Rate limiting middleware
