@@ -6,6 +6,10 @@ const { generateOTP, storeOTP, verifyOTP } = require("./otpServices");
 const router = express.Router();
 const cors = require("cors"); // Import the cors middleware
 
+// Initialize Express app
+const app = express();
+app.use(cors()); // This will enable CORS for all routes
+
 // Rate limiting middleware
 const limiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
@@ -15,7 +19,6 @@ const limiter = rateLimit({
 
 // Apply rate limiting to all routes
 router.use(limiter);
-app.use(cors()); // This will enable CORS for all routes
 
 // Security headers middleware
 router.use(helmet());
