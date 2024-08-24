@@ -6,7 +6,21 @@ const { generateOTP, storeOTP, verifyOTP } = require("./otpServices");
 const cors = require("cors"); // Import the cors middleware
 
 const router = express.Router(); // Use express Router
-router.use(cors()); // This will enable CORS for all routes
+const app = express();
+
+// CORS options
+const corsOptions = {
+  origin: ["http://localhost:5173", "https://your-other-frontend.com"], // Array of allowed origins
+  methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+  allowedHeaders: ["Content-Type", "Authorization"],
+  credentials: true, // Allow cookies if needed
+};
+// Apply CORS middleware with options
+app.use(cors(corsOptions));
+
+// Ensure preflight OPTIONS requests are handled
+app.options("*", cors(corsOptions));
+
 router.use(express.json()); // Use body parser middleware to handle JSON request bodies
 
 // Rate limiting middleware
