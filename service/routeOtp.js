@@ -26,19 +26,17 @@ app.use(limiter);
 app.use(helmet());
 
 // Input validation functions
-const validatePhoneNumber = (phoneNumber) => /^\d{9}$/.test(phoneNumber);
+const validatePhoneNumber = (phoneNumber) =>
+  /^\+\d{1,3}\d{6,14}$/.test(phoneNumber);
 const validateEmail = (email) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
-const cleanPhoneNumber = (phoneNumber) => phoneNumber.replace(/\D/g, "");
 
 // Send SMS OTP Route
 router.post("/send-sms-otp", async (req, res) => {
   const { phoneNumber } = req.body;
-  phoneNumber = cleanPhoneNumber(phoneNumber);
-
   if (!phoneNumber || !validatePhoneNumber(phoneNumber)) {
     return res
       .status(400)
-      .json({ error: "Valid 9-digit phone number is required" });
+      .json({ error: "Valid start with +351 or other international heading" });
   }
   const otp = generateOTP();
   try {
