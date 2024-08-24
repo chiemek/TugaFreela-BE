@@ -3,14 +3,11 @@ const rateLimit = require("express-rate-limit");
 const helmet = require("helmet");
 const { sendSMS, sendEmail } = require("./otpConfig");
 const { generateOTP, storeOTP, verifyOTP } = require("./otpServices");
-const router = express.Router();
 const cors = require("cors"); // Import the cors middleware
 
-// Initialize Express app
-const app = express();
-app.use(cors()); // This will enable CORS for all routes
-// Use body parser middleware to handle JSON request bodies
-app.use(express.json());
+const router = express.Router(); // Use express Router
+router.use(cors()); // This will enable CORS for all routes
+router.use(express.json()); // Use body parser middleware to handle JSON request bodies
 
 // Rate limiting middleware
 const limiter = rateLimit({
@@ -20,10 +17,10 @@ const limiter = rateLimit({
 });
 
 // Apply rate limiting to all routes
-app.use(limiter);
+router.use(limiter);
 
 // Security headers middleware
-app.use(helmet());
+router.use(helmet());
 
 // Input validation functions
 const validatePhoneNumber = (phoneNumber) =>
@@ -88,8 +85,5 @@ router.post("/verify-otp", async (req, res) => {
       .json({ error: "Invalid or expired OTP", details: error.message });
   }
 });
-
-// Apply the router to the app
-app.use(router);
 
 module.exports = router;
